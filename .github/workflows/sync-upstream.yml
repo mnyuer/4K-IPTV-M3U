@@ -1,0 +1,41 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # 每天北京时间 8:00 同步 (UTC 00:00)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # 允许手动触发
+
+permissions: write-all
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Add upstream
+        run: |
+          git remote add upstream https://github.com/jia070310/4K-IPTV-M3U.git
+          git fetch upstream
+
+      - name: Merge upstream changes
+        run: |
+          git checkout main
+          git merge upstream/main --no-edit --allow-unrelated-histories || true
+          
+          # 检查是否有冲突
+          if [ -f .git/MERGE_MSG ]; then
+            echo "检测到冲突，使用上游版本"
+            git merge --abort
+            git reset --hard upstream/main
+          fi
+
+      - name: Push
+        run: |
+          git push origin main
