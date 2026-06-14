@@ -36,6 +36,35 @@ jobs:
             git reset --hard upstream/main
           fi
 
-      - name: Push
+      - name: Generate merged iptv.m3u
         run: |
+          cat m3u/*.m3u > iptv.m3u.tmp
+          # 保留第一个 #EXTM3U 头，移除其他文件的头
+          python3 -c "
+import re
+with open('iptv.m3u.tmp', 'r', encoding='utf-8') as f:
+    content = f.read()
+# 只保留第一个 #EXTM3U
+lines = content.split('\n')
+result = []
+header_written = False
+for line in lines:
+    if line.startswith('#EXTM3U'):
+        if not header_written:
+            result.append(line)
+            header_written = True
+    else:
+        result.append(line)
+with open('iptv.m3u', 'w', encoding='utf-8') as f:
+    f.write('\n'.join(result))
+print(f'Generated iptv.m3u: {len(result)} lines')
+"
+          rm -f iptv.m3u.tmp
+
+      - name: Commit and push
+        run: |
+          git add iptv.m3u
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update merged iptv.m3u"
+          fi
           git push origin main
