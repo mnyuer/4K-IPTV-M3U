@@ -5,7 +5,6 @@ on:
     # 每天北京时间 8:00 同步 (UTC 00:00)
     - cron: '0 0 * * *'
   workflow_dispatch:
-    # 允许手动触发
 
 permissions: write-all
 
@@ -28,38 +27,20 @@ jobs:
         run: |
           git checkout main
           git merge upstream/main --no-edit --allow-unrelated-histories || true
-          
-          # 检查是否有冲突
           if [ -f .git/MERGE_MSG ]; then
-            echo "检测到冲突，使用上游版本"
+            echo "冲突，使用上游版本"
             git merge --abort
             git reset --hard upstream/main
           fi
 
       - name: Generate merged iptv.m3u
         run: |
-          cat m3u/*.m3u > iptv.m3u.tmp
-          # 保留第一个 #EXTM3U 头，移除其他文件的头
-          python3 -c "
-import re
-with open('iptv.m3u.tmp', 'r', encoding='utf-8') as f:
-    content = f.read()
-# 只保留第一个 #EXTM3U
-lines = content.split('\n')
-result = []
-header_written = False
-for line in lines:
-    if line.startswith('#EXTM3U'):
-        if not header_written:
-            result.append(line)
-            header_written = True
-    else:
-        result.append(line)
-with open('iptv.m3u', 'w', encoding='utf-8') as f:
-    f.write('\n'.join(result))
-print(f'Generated iptv.m3u: {len(result)} lines')
-"
-          rm -f iptv.m3u.tmp
+          # 取第一个文件的 #EXTM3U 头
+          first=$(ls m3u/*.m3u | head -1)
+          head -1 "$first" > iptv.m3u
+          # 合并所有文件（跳过各自的 #EXTM3U 头）
+          tail -q -n+2 m3u/*.m3u >> iptv.m3u
+          echo "Generated iptv.m3u: $(wc -l < iptv.m3u) lines"
 
       - name: Commit and push
         run: |
