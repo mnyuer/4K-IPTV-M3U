@@ -2,7 +2,6 @@ name: Sync Upstream
 
 on:
   schedule:
-    # 每天北京时间 8:00 同步 (UTC 00:00)
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -33,19 +32,13 @@ jobs:
             git reset --hard upstream/main
           fi
 
-      - name: Generate merged iptv.m3u
-        run: |
-          # 取第一个文件的 #EXTM3U 头
-          first=$(ls m3u/*.m3u | head -1)
-          head -1 "$first" > iptv.m3u
-          # 合并所有文件（跳过各自的 #EXTM3U 头）
-          tail -q -n+2 m3u/*.m3u >> iptv.m3u
-          echo "Generated iptv.m3u: $(wc -l < iptv.m3u) lines"
+      - name: Generate merged iptv files
+        run: python3 scripts/merge_m3u.py
 
       - name: Commit and push
         run: |
-          git add iptv.m3u
+          git add iptv.m3u iptv_telecom.m3u iptv_unicom.m3u
           if ! git diff --staged --quiet; then
-            git commit -m "chore: update merged iptv.m3u"
+            git commit -m "chore: update merged iptv files"
           fi
           git push origin main
